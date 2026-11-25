@@ -1,0 +1,14 @@
+{
+    "app": {
+        "title": "Bloop"
+    },
+    "cheddar": {
+        "screenTitle": "Simulateur de lancer bcp de cheddar sur le pc",
+        "pickImage": "Choisir une image",
+        "clear": "Nettoyer l'écran",
+        "mute": "Couper le son",
+        "unmute": "Activer le son",
+        "errorInit": "Impossible de lancer le rendu 3D : {message}",
+        "errorImage": "Ce fichier n'est pas une image lisible."
+    }
+}

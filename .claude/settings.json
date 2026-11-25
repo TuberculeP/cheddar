@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(npm view three version)",
+      "PowerShell(npm view @types/three version)",
+      "PowerShell(node --version)",
+      "Bash(npx eslint *)",
+      "Bash(npm run *)",
+      "Bash(npx vue-tsc *)",
+      "Bash(npm test *)"
+    ]
+  }
+}

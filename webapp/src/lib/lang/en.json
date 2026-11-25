@@ -1,0 +1,14 @@
+{
+    "app": {
+        "title": "Bloop"
+    },
+    "cheddar": {
+        "screenTitle": "Simulator for throwing lots of cheddar at the PC",
+        "pickImage": "Choose an image",
+        "clear": "Clean the screen",
+        "mute": "Mute",
+        "unmute": "Unmute",
+        "errorInit": "Could not start 3D rendering: {message}",
+        "errorImage": "This file is not a readable image."
+    }
+}
