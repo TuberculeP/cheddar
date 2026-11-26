@@ -16,9 +16,13 @@ cheddar/
   audio.ts        -> CheeseAudio: procedural Web Audio sound effects (whoosh, splat, squish, peel)
   monitor.ts      -> Monitor: body, stand, screen canvas texture, screen glow light
   scene.ts        -> CheddarScene: renderer, camera framing, lights, pointer firing, fixed-step loop
-views/cheddar/CheddarView.vue -> minimal overlay (3 discreet icon buttons, errors only), lazy-imports scene.ts
-                                 (three.js stays out of the main bundle). The page title is the
-                                 placeholder drawn on the 3D screen (+ sr-only h1, document.title).
+views/cheddar/
+  CheddarView.vue   -> minimal overlay (discreet icon buttons, errors only), lazy-imports scene.ts
+                       (three.js stays out of the main bundle). The page title is the placeholder
+                       drawn on the 3D screen (+ sr-only h1, document.title).
+  useSpeedrun.ts    -> "cover the screen" run: countdown, timer, splits, personal best (localStorage)
+  SpeedrunPanel.vue -> splits panel + countdown overlay, desktop-speedrun-timer look (own scoped
+                       colour variables, outside the app theme on purpose)
 ```
 
 `sim.ts`, `world.ts`, `heightfield.ts` and `config.ts` import nothing from three: they run under plain Node (handy for headless physics checks with `tsx`) and map onto TSL compute buffers if the solver moves to the GPU.
@@ -30,6 +34,11 @@ CheddarScene.create(host: HTMLElement, { screenTitle, onCountChange(n) }): Promi
 scene.backend: "WebGPU" | "WebGL 2"
 scene.setScreenImage(file: Blob): Promise<void>   // rejects if not a decodable image
 scene.setMuted(muted: boolean): void
+scene.setFiringEnabled(enabled: boolean): void   // speedrun countdown
+scene.thrown: number                             // slices thrown since clear()
+scene.measureCoverage(): number                  // 0..1, ~1 ms: a few times per second
+scene.unlockAudio(): void                        // from a click handler
+scene.cue(kind: "tick" | "go" | "finish"): void
 scene.clear(): void
 scene.dispose(): void
 
@@ -60,3 +69,4 @@ sim.events: SimEvent[]   // { kind: "stick" | "peel", slot, count, speed, x, des
 - Sleep is decided on real displacement only (free particles and creeping anchors). A creep blocked by a collider must not keep a slice awake, or it costs CPU forever.
 - Helmet's default CSP blocks `blob:` images, so `Monitor.setImage` draws an `ImageBitmap` into a canvas instead of loading an object URL. An iframe cannot become a WebGL texture: the planned URL mode needs `CSS3DRenderer` under a transparent canvas.
 - Rendered thickness is 85% of the simulated one so stacked layers never z-fight.
+- Screen coverage is what the camera sees, not what touches the glass: every quad within `SPEEDRUN.maskDepth` in front of the screen is projected onto it (slices on other slices, bridges over holes, flaps). Only slices with a stuck particle count, so cheese flying or falling past the last hole cannot end a run. "Covered" is `SPEEDRUN.target` (99.5%), and the UI shows coverage relative to it.

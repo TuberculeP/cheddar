@@ -65,6 +65,7 @@ export class CheddarScene {
   private readonly aimPlane = new Plane(new Vector3(0, 0, 1), 0);
   private readonly pointer = new Vector2();
   private firing = false;
+  private firingEnabled = true;
   private fireTimer = 0;
   private lastTime = -1;
   private accumulator = 0;
@@ -120,6 +121,32 @@ export class CheddarScene {
 
   setMuted(muted: boolean) {
     this.audio.setMuted(muted);
+  }
+
+  /** Blocks throwing (speedrun countdown). A burst in progress stops. */
+  setFiringEnabled(enabled: boolean) {
+    this.firingEnabled = enabled;
+    if (!enabled) this.firing = false;
+  }
+
+  /** Slices thrown since the last clear(). */
+  get thrown() {
+    return this.sim.thrown;
+  }
+
+  /** Screen coverage, 0..1 (see CheeseSim.screenCoverage: not for every frame). */
+  measureCoverage() {
+    return this.sim.screenCoverage();
+  }
+
+  /** Call from a click handler: browsers only start audio inside a user gesture. */
+  unlockAudio() {
+    this.audio.unlock();
+  }
+
+  /** Speedrun signals: countdown tick, start, finish. */
+  cue(kind: "tick" | "go" | "finish") {
+    this.audio.cue(kind);
   }
 
   dispose() {
@@ -329,6 +356,7 @@ export class CheddarScene {
     this.renderer.domElement.setPointerCapture(e.pointerId);
     // Browsers only allow audio to start inside a user gesture.
     this.audio.unlock();
+    if (!this.firingEnabled) return;
     this.setPointer(e);
     this.firing = true;
     this.fire();

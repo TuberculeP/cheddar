@@ -87,5 +87,20 @@ export const LAUNCH = {
 };
 
 export const MAX_SLICES = 600;
+
+export const SPEEDRUN = {
+  /** Coverage sampling grid over the screen (not the bezel). */
+  cell: 0.005,
+  /**
+   * Fraction of grid points that counts as "fully covered". Exactly 1 would mean hunting
+   * a 2 mm gap between two slices; the UI shows coverage relative to this target.
+   */
+  target: 0.995,
+  /** Cheese masks the screen when it lies at most this far in front of it (stacks, flaps). */
+  maskDepth: 0.05,
+  /** Intermediate splits, as fractions of the target. The last split is the finish. */
+  splits: [0.25, 0.5, 0.75, 1],
+  countdown: 3,
+};
 /** Heightfield cell size: smaller is smoother stacking, more memory. */
 export const HEIGHTFIELD_CELL = 0.004;

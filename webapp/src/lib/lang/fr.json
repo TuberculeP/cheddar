@@ -9,6 +9,17 @@
         "mute": "Couper le son",
         "unmute": "Activer le son",
         "errorInit": "Impossible de lancer le rendu 3D : {message}",
-        "errorImage": "Ce fichier n'est pas une image lisible."
+        "errorImage": "Ce fichier n'est pas une image lisible.",
+        "speedrun": {
+            "start": "Speedrun : recouvrir l'écran",
+            "restart": "Recommencer",
+            "close": "Fermer le speedrun",
+            "category": "Écran 100%",
+            "slices": "Tranches",
+            "coverage": "Couverture",
+            "best": "Meilleur temps",
+            "go": "Partez !",
+            "newRecord": "Nouveau record !"
+        }
     }
 }

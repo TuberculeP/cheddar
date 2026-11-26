@@ -17,9 +17,9 @@ public/uploads/ # Uploaded files (Multer)
 
 | Module | File | Content |
 |--------|------|---------|
-| Backend | `server/CLAUDE.md` | Routes, entities, migrations, admin, WebSocket, GDPR invariant |
+| Backend | `server/CLAUDE.md` | Routes, entities, migrations, WebSocket, GDPR invariant |
 | Frontend | `webapp/CLAUDE.md` | Router guards, apiClient, stores, i18n, design system |
-| Cheddar toy | `webapp/src/cheddar/CLAUDE.md` | three.js WebGPU/TSL scene, cheese physics (PBD, adhesion, heightfields) |
+| Cheddar toy | `webapp/src/cheddar/CLAUDE.md` | three.js WebGPU/TSL scene, cheese physics (PBD, adhesion, heightfields), sounds, screen-cover speedrun |
 
 ## Commands (from root)
 

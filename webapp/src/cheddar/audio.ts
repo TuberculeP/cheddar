@@ -159,6 +159,42 @@ export class CheeseAudio {
     this.suction(t + 0.05, 0.03 + 0.06 * a, 1200 * k, 500 * k, 0.15, out);
   }
 
+  /**
+   * Speedrun signals, as plain synth tones: a short beep per countdown second, a higher
+   * longer one at the start, and a rising arpeggio at the finish.
+   */
+  cue(kind: "tick" | "go" | "finish") {
+    const ctx = this.ready(true);
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const out = this.panner(0);
+    const notes =
+      kind === "tick"
+        ? [[880, 0, 0.12]]
+        : kind === "go"
+          ? [[1320, 0, 0.35]]
+          : [
+              [523, 0, 0.14],
+              [659, 0.1, 0.14],
+              [784, 0.2, 0.14],
+              [1047, 0.3, 0.5],
+            ];
+    for (const [freq, delay, length] of notes) {
+      const osc = ctx.createOscillator();
+      osc.type = "square";
+      osc.frequency.value = freq;
+      const lowpass = ctx.createBiquadFilter();
+      lowpass.type = "lowpass";
+      lowpass.frequency.value = 3000;
+      osc
+        .connect(lowpass)
+        .connect(envelope(ctx, t + delay, 0.005, 0.12, length))
+        .connect(out);
+      osc.start(t + delay);
+      osc.stop(t + delay + length + 0.05);
+    }
+  }
+
   dispose() {
     void this.ctx?.close();
     this.ctx = null;

@@ -1,4 +1,12 @@
-import { DESK, MAX_SLICES, PHYS, SLICE } from "./config";
+import {
+  DESK,
+  MAX_SLICES,
+  PHYS,
+  SCREEN,
+  SCREEN_CENTER_Y,
+  SLICE,
+  SPEEDRUN,
+} from "./config";
 import { CheeseWorld, type Contact } from "./world";
 
 export type Vec3 = readonly [number, number, number];
@@ -99,6 +107,15 @@ export class CheeseSim {
   awakeCount = 0;
   /** Filled by step(); the consumer empties it (events.length = 0) after reading. */
   readonly events: SimEvent[] = [];
+  /** Slices spawned since the last clear(). */
+  thrown = 0;
+
+  // Screen coverage sampling grid (see screenCoverage)
+  private readonly coverX0 = -SCREEN.width / 2;
+  private readonly coverY0 = SCREEN_CENTER_Y - SCREEN.height / 2;
+  private readonly coverNx = Math.round(SCREEN.width / SPEEDRUN.cell);
+  private readonly coverNy = Math.round(SCREEN.height / SPEEDRUN.cell);
+  private readonly coverMask = new Uint8Array(this.coverNx * this.coverNy);
 
   constructor() {
     const a: number[] = [];
@@ -146,6 +163,7 @@ export class CheeseSim {
   ) {
     const slot = this.nextSlot;
     this.nextSlot = (this.nextSlot + 1) % MAX_SLICES;
+    this.thrown++;
     if (!this.alive[slot]) this.aliveCount++;
     if (!this.awake[slot]) this.awakeCount++;
     this.alive[slot] = 1;
@@ -200,6 +218,7 @@ export class CheeseSim {
     this.awakeCount = 0;
     this.nextSlot = 0;
     this.highWater = 0;
+    this.thrown = 0;
     this.events.length = 0;
     this.world.clear();
   }
@@ -481,6 +500,83 @@ export class CheeseSim {
     }
   }
 
+  /**
+   * Fraction of the screen (bezel excluded) hidden by cheese, from 0 to 1, as the camera
+   * sees it: every quad lying in front of the screen (within SPEEDRUN.maskDepth) is projected
+   * onto the screen plane, whether it touches the glass, sits on other slices, bridges a hole
+   * or hangs as a flap. A flap seen edge-on projects to almost nothing, a flat bridge masks
+   * its whole area. Only slices attached somewhere count (at least one stuck particle):
+   * a slice flying or falling past the last hole must not end a speedrun.
+   *
+   * Recomputed from scratch on each call, so cheese that slid off frees its area again.
+   * Cost: a few hundred thousand point tests with the screen full, so call it a few times
+   * per second, not every frame.
+   */
+  screenCoverage(): number {
+    const mask = this.coverMask;
+    const nx = this.coverNx;
+    const ny = this.coverNy;
+    const cell = SPEEDRUN.cell;
+    const pos = this.pos;
+    mask.fill(0);
+    let covered = 0;
+    for (let s = 0; s < this.highWater; s++) {
+      if (!this.alive[s]) continue;
+      const base = s * P;
+      if (this.stuck.subarray(base, base + P).indexOf(1) < 0) continue;
+      for (let row = 0; row < N - 1; row++) {
+        for (let col = 0; col < N - 1; col++) {
+          const a = base + row * N + col;
+          const b = a + 1;
+          const c = a + N;
+          const d = c + 1;
+          if (!this.inFront(a) || !this.inFront(b)) continue;
+          if (!this.inFront(c) || !this.inFront(d)) continue;
+          const ax = pos[a * 3];
+          const ay = pos[a * 3 + 1];
+          const bx = pos[b * 3];
+          const by = pos[b * 3 + 1];
+          const cx = pos[c * 3];
+          const cy = pos[c * 3 + 1];
+          const dx = pos[d * 3];
+          const dy = pos[d * 3 + 1];
+          // Grid points (cell centres) inside the quad's bounding box
+          const u0 = (Math.min(ax, bx, cx, dx) - this.coverX0) / cell - 0.5;
+          const u1 = (Math.max(ax, bx, cx, dx) - this.coverX0) / cell - 0.5;
+          const v0 = (Math.min(ay, by, cy, dy) - this.coverY0) / cell - 0.5;
+          const v1 = (Math.max(ay, by, cy, dy) - this.coverY0) / cell - 0.5;
+          const i0 = Math.max(0, Math.ceil(u0));
+          const i1 = Math.min(nx - 1, Math.floor(u1));
+          const j0 = Math.max(0, Math.ceil(v0));
+          const j1 = Math.min(ny - 1, Math.floor(v1));
+          for (let j = j0; j <= j1; j++) {
+            const py = this.coverY0 + (j + 0.5) * cell;
+            for (let i = i0; i <= i1; i++) {
+              const k = j * nx + i;
+              if (mask[k]) continue;
+              const px = this.coverX0 + (i + 0.5) * cell;
+              // Same split as the rendered quad: triangles (a, b, d) and (a, d, c).
+              if (
+                inTriangle(px, py, ax, ay, bx, by, dx, dy) ||
+                inTriangle(px, py, ax, ay, dx, dy, cx, cy)
+              ) {
+                mask[k] = 1;
+                covered++;
+              }
+            }
+          }
+        }
+      }
+    }
+    return covered / (nx * ny);
+  }
+
+  /** In the slab just in front of the monitor's front face. */
+  private inFront(p: number) {
+    const z = this.pos[p * 3 + 2];
+    return z >= 0 && z <= SPEEDRUN.maskDepth;
+  }
+
   private unstick(p: number) {
     const p3 = p * 3;
     this.stuck[p] = 0;
@@ -522,6 +618,25 @@ export class CheeseSim {
       }
     }
   }
+}
+
+/** Point-in-triangle test in 2D, either winding. */
+function inTriangle(
+  px: number,
+  py: number,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  cx: number,
+  cy: number,
+) {
+  const d1 = (px - bx) * (ay - by) - (ax - bx) * (py - by);
+  const d2 = (px - cx) * (by - cy) - (bx - cx) * (py - cy);
+  const d3 = (px - ax) * (cy - ay) - (cx - ax) * (py - ay);
+  const neg = d1 < 0 || d2 < 0 || d3 < 0;
+  const pos = d1 > 0 || d2 > 0 || d3 > 0;
+  return !(neg && pos);
 }
 
 /** Rotates (x, y, z) by the unit quaternion q. */

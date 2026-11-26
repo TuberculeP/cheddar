@@ -33,6 +33,23 @@
       />
     </div>
 
+    <SpeedrunPanel
+      v-if="speedrun.phase.value !== 'off'"
+      :title="t('cheddar.screenTitle')"
+      :phase="speedrun.phase.value"
+      :countdown="speedrun.countdown.value"
+      :show-go="speedrun.showGo.value"
+      :elapsed="speedrun.elapsed.value"
+      :splits="speedrun.splits.value"
+      :comparison="speedrun.comparison.value"
+      :best="speedrun.best.value"
+      :coverage="speedrun.coverage.value"
+      :thrown="speedrun.thrown.value"
+      :new-record="speedrun.newRecord.value"
+      @restart="speedrun.start"
+      @close="speedrun.close"
+    />
+
     <p
       v-if="error"
       role="alert"
@@ -46,9 +63,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
-import { Eraser, ImageUp, Volume2, VolumeX } from "lucide-vue-next";
+import { Eraser, ImageUp, Timer, Volume2, VolumeX } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import type { CheddarScene } from "@/cheddar/scene";
+import SpeedrunPanel from "./SpeedrunPanel.vue";
+import { useSpeedrun } from "./useSpeedrun";
 
 const { t } = useI18n();
 
@@ -59,6 +78,13 @@ const ready = ref(false);
 const count = ref(0);
 const error = ref("");
 let unmounted = false;
+
+const speedrun = useSpeedrun(scene);
+/** Clearing mid-run would reset the coverage under the timer: restart instead. */
+const racing = computed(
+  () =>
+    speedrun.phase.value === "countdown" || speedrun.phase.value === "running",
+);
 
 /** The mute choice is a per-browser convenience: storage may be unavailable (private mode). */
 const MUTE_KEY = "cheddar.muted";
@@ -77,9 +103,17 @@ const actions = computed(() => [
     key: "clear",
     icon: Eraser,
     label: t("cheddar.clear"),
-    disabled: !ready.value || count.value === 0,
+    disabled: !ready.value || count.value === 0 || racing.value,
     pressed: undefined,
     run: clear,
+  },
+  {
+    key: "speedrun",
+    icon: Timer,
+    label: t("cheddar.speedrun.start"),
+    disabled: !ready.value,
+    pressed: undefined,
+    run: speedrun.start,
   },
   {
     key: "sound",

@@ -15,7 +15,7 @@ src/
     Main.vue              # /app
     ProfileView.vue       # /app/profile (GDPR: export, rename, delete account)
     auth/                 # LoginView, RegisterView
-    cheddar/CheddarView.vue # / (public, home): overlay for the three.js scene
+    cheddar/              # / (public, home): CheddarView + speedrun (see cheddar/CLAUDE.md)
   cheddar/                # three.js cheese toy (see cheddar/CLAUDE.md)
   components/ui/          # shadcn-vue components (see Design system)
   lib/
