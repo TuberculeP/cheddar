@@ -163,9 +163,12 @@ onMounted(async () => {
     scene.value = created;
     ready.value = true;
   } catch (e) {
-    error.value = t("cheddar.errorInit", {
-      message: e instanceof Error ? e.message : String(e),
-    });
+    error.value =
+      e instanceof Error && e.name === "GraphicsUnavailableError"
+        ? t("cheddar.errorNoGpu")
+        : t("cheddar.errorInit", {
+            message: e instanceof Error ? e.message : String(e),
+          });
   }
 });
 

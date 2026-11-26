@@ -31,6 +31,7 @@ views/cheddar/
 
 ```typescript
 CheddarScene.create(host: HTMLElement, { screenTitle, onCountChange(n) }): Promise<CheddarScene>
+  // rejects with GraphicsUnavailableError (name checked by the view) if neither WebGPU nor WebGL 2 works
 scene.backend: "WebGPU" | "WebGL 2"
 scene.setScreenImage(file: Blob): Promise<void>   // rejects if not a decodable image
 scene.setMuted(muted: boolean): void
@@ -68,5 +69,7 @@ sim.events: SimEvent[]   // { kind: "stick" | "peel", slot, count, speed, x, des
 - The solver's stiffness depends on the step: keep `STEP` (scene.ts) and `PHYS.substeps` fixed, retune `PHYS` after changing either.
 - Sleep is decided on real displacement only (free particles and creeping anchors). A creep blocked by a collider must not keep a slice awake, or it costs CPU forever.
 - Helmet's default CSP blocks `blob:` images, so `Monitor.setImage` draws an `ImageBitmap` into a canvas instead of loading an object URL. An iframe cannot become a WebGL texture: the planned URL mode needs `CSS3DRenderer` under a transparent canvas.
+- LibreWolf gates WebGL per site (`librewolf.webgl.prompt`, granted from an address-bar icon; console: "Blocked ... from creating WebGL context but prompting the user") and lacks WebGPU, even with `webgl.disabled = false`: `WebGPURenderer.init()` then dies inside three.js ("this.gl is null"). `create()` probes both APIs first so the view can show how to re-enable WebGL. The view matches the error by `name`, not `instanceof`, because `scene.ts` is lazy-imported.
+- `resize()` caps the pixel ratio so the drawing buffer stays under the GPU's max size (`maxDrawingSize`). LibreWolf's fingerprinting protection reports WebGL 2 minimum limits (2048 px): past them every render target fails silently, sound keeps playing and the canvas is black. The "WebGL context was lost" log at startup is the `create()` probe releasing its test context.
 - Rendered thickness is 85% of the simulated one so stacked layers never z-fight.
 - Screen coverage is what the camera sees, not what touches the glass: every quad within `SPEEDRUN.maskDepth` in front of the screen is projected onto it (slices on other slices, bridges over holes, flaps). Only slices with a stuck particle count, so cheese flying or falling past the last hole cannot end a run. "Covered" is `SPEEDRUN.target` (99.5%), and the UI shows coverage relative to it.

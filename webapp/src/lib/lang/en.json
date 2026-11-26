@@ -10,6 +10,7 @@
         "unmute": "Unmute",
         "errorInit": "Could not start 3D rendering: {message}",
         "errorImage": "This file is not a readable image.",
+        "errorNoGpu": "3D rendering needs WebGL or WebGPU, and this browser blocks both. On LibreWolf: click the WebGL icon in the address bar and allow this site, then reload the page.",
         "speedrun": {
             "start": "Speedrun: cover the screen",
             "restart": "Restart",

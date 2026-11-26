@@ -6,7 +6,7 @@ import {
   HemisphereLight,
   MathUtils,
   Mesh,
-  PCFSoftShadowMap,
+  PCFShadowMap,
   PerspectiveCamera,
   Plane,
   PlaneGeometry,
@@ -38,6 +38,32 @@ const FRAME = { width: 0.8, height: 0.62 };
 const CAMERA_TARGET = new Vector3(0, SCREEN_CENTER_Y - 0.03, 0);
 const CAMERA_DIRECTION = new Vector3(0, 0.13, 1).normalize();
 
+/** Neither WebGPU nor WebGL 2 is usable (e.g. LibreWolf ships with WebGL disabled). */
+export class GraphicsUnavailableError extends Error {
+  constructor() {
+    super("Neither WebGPU nor WebGL 2 is available");
+    this.name = "GraphicsUnavailableError";
+  }
+}
+
+async function hasWebGPU() {
+  const gpu = (navigator as { gpu?: { requestAdapter(): Promise<unknown> } })
+    .gpu;
+  if (!gpu) return false;
+  try {
+    return (await gpu.requestAdapter()) !== null;
+  } catch {
+    return false;
+  }
+}
+
+function hasWebGL2() {
+  const gl = document.createElement("canvas").getContext("webgl2");
+  if (!gl) return false;
+  gl.getExtension("WEBGL_lose_context")?.loseContext();
+  return true;
+}
+
 export interface CheddarSceneOptions {
   /** Shown on the screen until an image is chosen; it is the page's visible title. */
   screenTitle: string;
@@ -51,6 +77,8 @@ export interface CheddarSceneOptions {
 export class CheddarScene {
   /** Which backend WebGPURenderer picked: WebGPU, or its WebGL 2 fallback. */
   readonly backend: "WebGPU" | "WebGL 2";
+  /** Largest drawing-buffer side (px) the GPU accepts. */
+  private readonly maxDrawingSize: number;
   private readonly scene = new Scene();
   private readonly camera = new PerspectiveCamera(35, 1, 0.05, 10);
   private readonly sim = new CheeseSim();
@@ -71,7 +99,12 @@ export class CheddarScene {
   private accumulator = 0;
   private lastCount = -1;
 
+  /** Rejects with GraphicsUnavailableError when the browser blocks both GPU APIs. */
   static async create(host: HTMLElement, options: CheddarSceneOptions) {
+    // Without this probe, WebGPURenderer falls back to WebGL 2 anyway and fails deep
+    // inside three.js ("this.gl is null").
+    if (!(await hasWebGPU()) && !hasWebGL2())
+      throw new GraphicsUnavailableError();
     const renderer = new WebGPURenderer({ antialias: true });
     await renderer.init();
     return new CheddarScene(host, renderer, options);
@@ -82,13 +115,25 @@ export class CheddarScene {
     private readonly renderer: WebGPURenderer,
     private readonly options: CheddarSceneOptions,
   ) {
-    const backend = renderer.backend as { isWebGPUBackend?: boolean };
+    const backend = renderer.backend as {
+      isWebGPUBackend?: boolean;
+      device?: { limits: { maxTextureDimension2D: number } };
+      gl?: WebGL2RenderingContext;
+    };
     this.backend = backend.isWebGPUBackend ? "WebGPU" : "WebGL 2";
+    this.maxDrawingSize = backend.device
+      ? backend.device.limits.maxTextureDimension2D
+      : backend.gl
+        ? Math.min(
+            backend.gl.getParameter(backend.gl.MAX_RENDERBUFFER_SIZE),
+            backend.gl.getParameter(backend.gl.MAX_TEXTURE_SIZE),
+            ...backend.gl.getParameter(backend.gl.MAX_VIEWPORT_DIMS),
+          )
+        : 2048;
 
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = ACESFilmicToneMapping;
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = PCFSoftShadowMap;
+    renderer.shadowMap.type = PCFShadowMap;
     const canvas = renderer.domElement;
     canvas.style.display = "block";
     canvas.style.touchAction = "none";
@@ -218,6 +263,15 @@ export class CheddarScene {
     const w = this.host.clientWidth;
     const h = this.host.clientHeight;
     if (!w || !h) return;
+    // Past the GPU's max size every render target fails and the canvas stays black.
+    // LibreWolf's fingerprinting protection lowers it to the WebGL 2 minimum (2048).
+    const ratio = Math.min(
+      window.devicePixelRatio,
+      2,
+      this.maxDrawingSize / w,
+      this.maxDrawingSize / h,
+    );
+    this.renderer.setPixelRatio(ratio);
     this.renderer.setSize(w, h);
     const aspect = w / h;
     const tan = Math.tan(MathUtils.degToRad(this.camera.fov / 2));

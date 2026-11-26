@@ -10,6 +10,7 @@
         "unmute": "Activer le son",
         "errorInit": "Impossible de lancer le rendu 3D : {message}",
         "errorImage": "Ce fichier n'est pas une image lisible.",
+        "errorNoGpu": "Le rendu 3D a besoin de WebGL ou WebGPU, bloqués par ce navigateur. Sur LibreWolf : cliquez sur l'icône WebGL dans la barre d'adresse et autorisez ce site, puis rechargez la page.",
         "speedrun": {
             "start": "Speedrun : recouvrir l'écran",
             "restart": "Recommencer",
